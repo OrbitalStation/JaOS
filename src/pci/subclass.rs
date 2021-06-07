@@ -1,4 +1,4 @@
-use crate::pci::class_name::ClassName::Unclassified;
+use crate::pci::PCIEnum;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,20 +10,12 @@ pub enum UnclassifiedSubclass {
     Count = 2
 }
 
-impl UnclassifiedSubclass {
-    pub fn new(subclass_code: u8) -> Option <UnclassifiedSubclass> {
+impl PCIEnum for UnclassifiedSubclass {
+    fn new(subclass_code: u8) -> Option <UnclassifiedSubclass> {
         match subclass_code {
             0 => Some(UnclassifiedSubclass::NonVGA),
             1 => Some(UnclassifiedSubclass::VGA),
             _ => None
-        }
-    }
-
-    pub fn to_string(&self) -> &'static str {
-        match self {
-            UnclassifiedSubclass::NonVGA => "Non-VGA-Compatible",
-            UnclassifiedSubclass::VGA => "VGA-Compatible",
-            _ => ""
         }
     }
 }
@@ -44,6 +36,15 @@ pub enum DiskControllerSubclass {
     Other = 0x80,
 
     Count = 10
+}
+
+impl PCIEnum for DiskControllerSubclass {
+    fn new(from: u8) -> Option<Self> {
+        if from > 8 && from != 0x80 {
+            return None
+        }
+        unsafe { Some(*((&from as *const u8) as *const Self)) }
+    }
 }
 
 #[allow(dead_code)]

@@ -13,6 +13,8 @@ use x86_64::instructions::port::Port;
 use crate::println;
 use class_name::*;
 use subclass::*;
+use alloc::fmt::format;
+use core::fmt::Debug;
 
 /****************************************************************/
 //                         Constants                            //
@@ -28,6 +30,10 @@ pub const MAX_FUNCTIONS: u8  =     8;
 /****************************************************************/
 //                            Types                             //
 /****************************************************************/
+
+pub trait PCIEnum {
+    fn new(from: u8) -> Option <Self> where Self: Sized + Debug + Clone + Copy + PartialEq + Eq;
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -123,13 +129,6 @@ pub unsafe fn read_config(bus: u8, dev: u8, func: u8, reg: u8) -> u32 {
     data_port.read()
 }
 
-pub unsafe fn get_dev_class_name(class_code: u8) -> Option <&'static str> {
-    match ClassName::new(class_code) {
-        Some(value) => Some(value.to_string()),
-        None => None
-    }
-}
-
 pub unsafe fn read_dev_header(bus: u8, dev: u8, func: u8, device: &mut Dev) -> bool {
     for i in 0u8..(device.header.len() as u8) {
         device.header[i as usize] = read_config(bus, dev, func, i)
@@ -138,7 +137,7 @@ pub unsafe fn read_dev_header(bus: u8, dev: u8, func: u8, device: &mut Dev) -> b
 }
 
 pub unsafe fn print_dev(bus: u8, dev: u8, func: u8, device: &mut Dev) {
-    println!("bus=0x{:x} dev=0x{:x} func=0x{:x} venID=0x{:x} devID=0x{:x} className={}", bus, dev, func, device.option.vendorID, device.option.deviceID, get_dev_class_name(device.option.classCode).expect("Unknown class code"));
+    println!("bus=0x{:x} dev=0x{:x} func=0x{:x} venID=0x{:x} devID=0x{:x} className={:?}", bus, dev, func, device.option.vendorID, device.option.deviceID, *((&device.option.classCode as *const u8) as *const ClassName));
 }
 
 pub unsafe fn scan() {
