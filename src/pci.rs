@@ -1,16 +1,25 @@
 /****************************************************************/
+//                          Modules                             //
+/****************************************************************/
+
+mod class_name;
+mod subclass;
+
+/****************************************************************/
 //                            Uses                              //
 /****************************************************************/
 
 use x86_64::instructions::port::Port;
 use crate::println;
+use class_name::*;
+use subclass::*;
 
 /****************************************************************/
 //                         Constants                            //
 /****************************************************************/
 
-pub const CONFIG_PORT:   u16 = 0xCF8;
-pub const DATA_PORT:     u16 = 0xCFC;
+pub const CONFIG_ADDRESS: u16 = 0xCF8;
+pub const CONFIG_DATA:    u16 = 0xCFC;
 
 pub const MAX_BUSES:     u8  =   255;
 pub const MAX_DEVICES:   u8  =    32;
@@ -28,67 +37,6 @@ pub enum HeaderType {
     Bridge,
     CardBus,
     MultiFunc = 0x80
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum ClassName {
-    BeforePCI20, //< Before PCI 2.0
-    DiskController,
-    NetworkInterface,
-    GraphicsAdapter,
-    MultimediaController,
-    MemoryController,
-    BridgeDevice,
-    CommunicationController,
-    SystemDevice,
-    InputDevice,
-    DockingStation,
-    CPU,
-    SerialBus,
-    WirelessController,
-    IntelligentIOController, //< Intelligent I/O controller
-    SatelliteController,
-    EncryptionController,
-    SignalProcessingController,
-    ProprietaryDevice = 0xFF,
-
-    Count = 18
-}
-
-impl ClassName {
-    pub fn new(class_code: u8) -> Option <ClassName> {
-        if class_code > 17 && class_code != 0xFF {
-            return None
-        }
-        unsafe { Some(*((&class_code as *const u8) as *const ClassName)) }
-    }
-
-    pub fn to_string(&self) -> &'static str {
-        match self {
-            ClassName::BeforePCI20 => "Before PCI 2.0",
-            ClassName::DiskController => "Disk controller",
-            ClassName::NetworkInterface => "Network interface",
-            ClassName::GraphicsAdapter => "Graphics adapter",
-            ClassName::MultimediaController => "Multimedia controller",
-            ClassName::MemoryController => "Memory controller",
-            ClassName::BridgeDevice => "Bridge device",
-            ClassName::CommunicationController => "Communication controller",
-            ClassName::SystemDevice => "System device",
-            ClassName::InputDevice => "Input device",
-            ClassName::DockingStation => "Docking station",
-            ClassName::CPU => "CPU",
-            ClassName::SerialBus => "Serial bus",
-            ClassName::WirelessController => "Wireless controller",
-            ClassName::IntelligentIOController => "Intelligent I/O controller",
-            ClassName::SatelliteController => "Satellite controller",
-            ClassName::EncryptionController => "Encryption controller",
-            ClassName::SignalProcessingController => "Signal processing controller",
-            ClassName::ProprietaryDevice => "Proprietary device",
-            _ => ""
-        }
-    }
 }
 
 #[allow(non_snake_case)]
@@ -169,8 +117,8 @@ impl ConfigAddress {
 
 pub unsafe fn read_config(bus: u8, dev: u8, func: u8, reg: u8) -> u32 {
     let address = ConfigAddress::new(reg, func, dev, bus, true);
-    let mut config_port = Port::new(CONFIG_PORT);
-    let mut data_port = Port::new(DATA_PORT);
+    let mut config_port = Port::new(CONFIG_ADDRESS);
+    let mut data_port = Port::new(CONFIG_DATA);
     config_port.write(address.val);
     data_port.read()
 }
