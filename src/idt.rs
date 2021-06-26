@@ -6,14 +6,16 @@ use x86_64::{
     structures::idt::{
         InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode
     },
-    instructions::port::Port,
     registers::control::Cr2
 };
 use pic8259::ChainedPics;
-use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
 use spin;
 use lazy_static::lazy_static;
-use crate::{print, gdt, absolute_end};
+use crate::{
+    gdt,
+    time::timer_isr,
+    keyboard::keyboard_isr,
+};
 
 /****************************************************************/
 //                         Constants                            //
@@ -21,8 +23,6 @@ use crate::{print, gdt, absolute_end};
 
 pub const PIC1: u8 = 0x20;
 pub const PIC2: u8 = PIC1 + 8;
-
-pub static PICS: spin::Mutex <ChainedPics> = spin::Mutex::new(unsafe { ChainedPics::new(PIC1, PIC2) });
 
 /****************************************************************/
 //                            Types                             //
@@ -39,6 +39,7 @@ pub enum InterruptIndex {
 //                           Macros                             //
 /****************************************************************/
 
+#[macro_export]
 macro_rules! irq_end {
     ($index:expr) => { unsafe { PICS.lock().notify_end_of_interrupt($index as u8) } };
 }
@@ -46,6 +47,8 @@ macro_rules! irq_end {
 /****************************************************************/
 //                           Statics                            //
 /****************************************************************/
+
+pub static PICS: spin::Mutex <ChainedPics> = spin::Mutex::new(unsafe { ChainedPics::new(PIC1, PIC2) });
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -101,10 +104,6 @@ lazy_static! {
     };
 }
 
-lazy_static! {
-    static ref KEYBOARD: spin::Mutex <Keyboard <layouts::Us104Key, ScancodeSet1>> = spin::Mutex::new(Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore));
-}
-
 /****************************************************************/
 //                     Other functions                          //
 /****************************************************************/
@@ -118,24 +117,12 @@ pub fn init() {
 /****************************************************************/
 
 extern "x86-interrupt" fn keyboard(_isf: InterruptStackFrame) {
-    let mut port = Port::new(0x60);
-    let scancode: u8 = unsafe { port.read() };
-    let mut keyboard = KEYBOARD.lock();
-
-    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-        if let Some(key) = keyboard.process_keyevent(key_event) {
-            match key {
-                DecodedKey::Unicode(character) => print!("{}", character),
-                DecodedKey::RawKey(key) => print!("{:?}", key)
-            }
-        }
-    }
-
+    keyboard_isr();
     irq_end!(InterruptIndex::Keyboard);
 }
 
 extern "x86-interrupt" fn timer(_isf: InterruptStackFrame) {
-    print!(".");
+    timer_isr();
     irq_end!(InterruptIndex::Timer);
 }
 
@@ -144,35 +131,35 @@ extern "x86-interrupt" fn timer(_isf: InterruptStackFrame) {
 /****************************************************************/
 
 extern "x86-interrupt" fn divide0(_isf: InterruptStackFrame) {
-    // dummy
+    panic!("Divide by zero occurred!")
 }
 
 extern "x86-interrupt" fn debug(_isf: InterruptStackFrame) {
-    // dummy
+    panic!("Int 0x1(Debug) occurred!")
 }
 
 extern "x86-interrupt" fn nmi(_isf: InterruptStackFrame) {
-    // dummy
+    panic!("Int 0x2(NMI) occurred!")
 }
 
 extern "x86-interrupt" fn breakpoint(_isf: InterruptStackFrame) {
-    // dummy
+    panic!("Int 0x3(Breakpoint) occurred!")
 }
 
 extern "x86-interrupt" fn overflow(_isf: InterruptStackFrame) {
-    // dummy
+    panic!("Overflow occurred!")
 }
 
 extern "x86-interrupt" fn bound(_isf: InterruptStackFrame) {
-    // dummy
+    panic!("Int 0x5(Bound) occurred!")
 }
 
 extern "x86-interrupt" fn opcode(_isf: InterruptStackFrame) {
-    // dummy
+    panic!("Int 0x6(Opcode) occurred!")
 }
 
 extern "x86-interrupt" fn device(_isf: InterruptStackFrame) {
-    // dummy
+    panic!("Int 0x7(Device) occurred!")
 }
 
 extern "x86-interrupt" fn double(isf: InterruptStackFrame, error_code: u64) -> ! {
@@ -180,46 +167,45 @@ extern "x86-interrupt" fn double(isf: InterruptStackFrame, error_code: u64) -> !
 }
 
 extern "x86-interrupt" fn tss(_isf: InterruptStackFrame, _code: u64) {
-    // dummy
+    panic!("Int 0xA(TSS) occurred!")
 }
 
 extern "x86-interrupt" fn segment(_isf: InterruptStackFrame, _code: u64) {
-    // dummy
+    panic!("Int 0xB(Segment) occurred!")
 }
 
 extern "x86-interrupt" fn stack(_isf: InterruptStackFrame, _code: u64) {
-    // dummy
+    panic!("Int 0xC(Stack) occurred!")
 }
 
 extern "x86-interrupt" fn protection(_isf: InterruptStackFrame, _code: u64) {
-    // dummy
+    panic!("Int 0xD(Protection) occurred!")
 }
 
 extern "x86-interrupt" fn page(isf: InterruptStackFrame, code: PageFaultErrorCode) {
-    print!("Exception: Page Fault\nAccessed address: {:?}\nError code: {:?}\n{:#?}", Cr2::read(), code, isf);
-    absolute_end()
+    panic!("Exception: Page Fault\nAccessed address: {:?}\nError code: {:?}\n{:#?}", Cr2::read(), code, isf);
 }
 
 extern "x86-interrupt" fn x87(_isf: InterruptStackFrame) {
-    // dummy
+    panic!("Int 0x10(x87) occurred!")
 }
 
 extern "x86-interrupt" fn alignment(_isf: InterruptStackFrame, _code: u64) {
-    // dummy
+    panic!("Int 0x11(Alignment) occurred!")
 }
 
 extern "x86-interrupt" fn machine(isf: InterruptStackFrame) -> ! {
-    panic!("Interrupt 0x12(Machine check, #MC) called.\n{:#?}.\nAborting.", isf);
+    panic!("Interrupt 0x12(Machine check, #MC) occurred.\n{:#?}.\nAborting.", isf);
 }
 
 extern "x86-interrupt" fn simd(_isf: InterruptStackFrame) {
-    // dummy
+    panic!("Int 0x13(SIMD) occurred!")
 }
 
 extern "x86-interrupt" fn virtualization(_isf: InterruptStackFrame) {
-    // dummy
+    panic!("Int 0x14 occurred!")
 }
 
 extern "x86-interrupt" fn security(_isf: InterruptStackFrame, _code: u64) {
-    // dummy
+    panic!("Int 0x1E(Security) occurred!")
 }
