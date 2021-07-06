@@ -13,9 +13,13 @@ use spin;
 use lazy_static::lazy_static;
 use crate::{
     gdt,
-    time::timer_isr,
-    keyboard::keyboard_isr,
 };
+
+#[cfg(all(feature = "keyboard", feature = "allocator"))]
+use crate::keyboard::keyboard_isr;
+
+#[cfg(feature = "time")]
+use crate::time::timer_isr;
 
 /****************************************************************/
 //                         Constants                            //
@@ -100,6 +104,8 @@ lazy_static! {
 
         idt[InterruptIndex::Keyboard as usize].set_handler_fn(keyboard);
 
+        /* Other */
+
         idt
     };
 }
@@ -117,17 +123,26 @@ pub fn init() {
 /****************************************************************/
 
 extern "x86-interrupt" fn keyboard(_isf: InterruptStackFrame) {
+    #[cfg(all(feature = "keyboard", feature = "allocator"))]
     keyboard_isr();
+
     irq_end!(InterruptIndex::Keyboard);
 }
 
+
 extern "x86-interrupt" fn timer(_isf: InterruptStackFrame) {
+    #[cfg(feature = "time")]
     timer_isr();
+
     irq_end!(InterruptIndex::Timer);
 }
 
 /****************************************************************/
 //                            ISRs                              //
+/****************************************************************/
+
+/****************************************************************/
+//                           basic                              //
 /****************************************************************/
 
 extern "x86-interrupt" fn divide0(_isf: InterruptStackFrame) {
@@ -209,3 +224,7 @@ extern "x86-interrupt" fn virtualization(_isf: InterruptStackFrame) {
 extern "x86-interrupt" fn security(_isf: InterruptStackFrame, _code: u64) {
     panic!("Int 0x1E(Security) occurred!")
 }
+
+/****************************************************************/
+//                           other                              //
+/****************************************************************/

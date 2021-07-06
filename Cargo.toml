@@ -4,13 +4,26 @@ version = "0.1.0"
 authors = ["Роман <romann.tarasenko@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+#pci = []
+#hdd = []
+#oll = []
+tty = []
+#time = []
+#hash = []
+enum = []
+page = []
+keyboard = []
+allocator = []
 
 [profile.dev]
 panic = "abort"
 
 [profile.release]
 panic = "abort"
+
+# [package.metadata.bootimage]
+# run-command = ["qemu-system-x86_64", "-hdd", "disk.img", "-drive", "format=raw,file=target/x86-64/debug/bootimage-os.bin"]
 
 [dependencies]
 bootloader = { version = "0.9.8", features = ["map_physical_memory"]}
@@ -32,8 +45,3 @@ features = ["alloc"]
 [dependencies.conquer-once]
 version = "0.2.0"
 default-features = false
-
-[dependencies.futures-util]
-version = "0.3.4"
-default-features = false
-features = ["alloc"]

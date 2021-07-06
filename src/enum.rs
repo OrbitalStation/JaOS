@@ -1,5 +1,7 @@
-#[macro_export]
-macro_rules! enum_flags {
+#[cfg(feature = "enum")]
+mod private {
+    #[macro_export]
+    macro_rules! enum_flags {
     (pub enum $name:ident : $type:ty { $($flags:ident = $values:expr,)+ } of $($repr:tt)*) => {
         enum_flags!{@impl pub enum, $name, $type, $($flags)+, $($values)+, $($repr)*}
     };
@@ -15,9 +17,7 @@ macro_rules! enum_flags {
         $($attrs)+ $name {
             $($flags = 1 << $values,)+
 
-            Nothing = 0,
             All = enum_flags!(@all $type, $($flags)+),
-	        Count = enum_flags!(@count $($flags)+)
         }
 
         impl $name {
@@ -38,7 +38,7 @@ macro_rules! enum_flags {
 
 	        #[inline]
 	        pub fn contain(self, flags: Self) -> bool {
-	            (self & flags) != Self::Nothing
+	            (self & flags) as $type != 0
             }
 
 	        #[inline]
@@ -142,3 +142,7 @@ macro_rules! enum_flags {
 		enum_flags!(@count $flag) + enum_flags!(@count $($flags)+)
 	};
 }
+}
+
+#[cfg(feature = "enum")]
+pub use private::*;

@@ -2,7 +2,7 @@
 #![no_main]
 
 #[allow(unused_imports)]
-use os::{print, println, debug};
+use os::{print, println};
 use bootloader::{BootInfo, entry_point};
 
 entry_point!(kernel);
@@ -10,38 +10,31 @@ entry_point!(kernel);
 fn kernel(boot_info: &'static BootInfo) -> ! {
     os::init(boot_info);
 
-    debug! {
-        for i in (0..5) {
-            println!("{}", i);
+    let mut sum = 0;
+    for frame in boot_info.memory_map.iter() {
+        if frame.region_type == bootloader::bootinfo::MemoryRegionType::Kernel {
+            sum += frame.range.end_addr() - frame.range.start_addr()
         }
-    };
+    }
 
-    // let mut hasher = os::hash::polynomial::Hasher::new(os::hash::polynomial::P_ENGLISH_BOTH);
-    // hasher.write_str("xedni");
-    // println!("{}", hasher.finish());
+    println!("total: {}", sum);
 
-    // let p4 = os::page::get_4th_page_table(x86_64::VirtAddr::new(boot_info.physical_memory_offset));
-    // let p3 = os::page::get_next_page_table(&mut p4.entries[0], boot_info.physical_memory_offset).unwrap();
-    // let p2 = os::page::get_next_page_table(&mut p3.entries[0], boot_info.physical_memory_offset).unwrap();
-    // let p1 = os::page::get_next_page_table(&mut p2.entries[0], boot_info.physical_memory_offset).unwrap();
-    // println!("{}", p3.entries[1]);
+    //println!("{}", bootloader_locator)
 
-    // debug! {
-    //     for i in [0, 2, 71].iter() => {
-    //         println!("{}", i);
-    //     }
-    // };
-
-    // let mut s = os::alloc::string::String::new();
-    // keyboard::readline(&mut s);
-    // println!("{}", s);
-
-    // let i4 = &mut page::get_4th_page_table(x86_64::VirtAddr::new(boot_info.physical_memory_offset)).entries[3];
-    // let i3 = &mut page::get_next_page_table(i4, boot_info.physical_memory_offset).entries[0];
-    // let i2 = &mut page::get_next_page_table(i3, boot_info.physical_memory_offset).entries[0];
-    // let i1 = &mut page::get_next_page_table(i2, boot_info.physical_memory_offset).entries[164];
+    // unsafe {
+    //     //os::pci::scan();
+    //     os::hdd::scan()
+    // }
     //
-    // println!("i4 = {}\n i3 = {}\n  i2 = {}\n   i1 = {}", i4, i3, i2, i1);
+    // let arr = [27u8; 1024];
+    //
+    // //println!("{:?}", arr);
+    //
+    // unsafe {
+    //     println!("{:?}", os::hdd::ata_access(os::hdd::Direction::Read, 3, 0x1000, 1, arr.as_slice()));
+    // }
+
+    //println!("{:?}", arr);
 
     os::exit();
 }
